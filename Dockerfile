@@ -9,27 +9,29 @@ RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com --recv-keys E5267A6C && \
 
 ENV DOKUWIKI_VERSION 2015-08-10a
 ENV MD5_CHECKSUM a4b8ae00ce94e42d4ef52dd8f4ad30fe
+ENV TEMPLATE_DIR /var/dokuwiki-template
+ENV STORAGE_DIR /var/dokuwiki-storage
 
-RUN mkdir -p /var/www /var/dokuwiki-storage/data && \
+RUN mkdir -p /var/www ${TEMPLATE_DIR}/data ${STORAGE_DIR} && \
     cd /var/www && \
     curl -O "http://download.dokuwiki.org/src/dokuwiki/dokuwiki-$DOKUWIKI_VERSION.tgz" && \
     echo "$MD5_CHECKSUM  dokuwiki-$DOKUWIKI_VERSION.tgz" | md5sum -c - && \
     tar xzf "dokuwiki-$DOKUWIKI_VERSION.tgz" --strip 1 && \
     rm "dokuwiki-$DOKUWIKI_VERSION.tgz" && \
-    mv /var/www/data/pages /var/dokuwiki-storage/data/pages && \
-    ln -s /var/dokuwiki-storage/data/pages /var/www/data/pages && \
-    mv /var/www/data/meta /var/dokuwiki-storage/data/meta && \
-    ln -s /var/dokuwiki-storage/data/meta /var/www/data/meta && \
-    mv /var/www/data/media /var/dokuwiki-storage/data/media && \
-    ln -s /var/dokuwiki-storage/data/media /var/www/data/media && \
-    mv /var/www/data/media_attic /var/dokuwiki-storage/data/media_attic && \
-    ln -s /var/dokuwiki-storage/data/media_attic /var/www/data/media_attic && \
-    mv /var/www/data/media_meta /var/dokuwiki-storage/data/media_meta && \
-    ln -s /var/dokuwiki-storage/data/media_meta /var/www/data/media_meta && \
-    mv /var/www/data/attic /var/dokuwiki-storage/data/attic && \
-    ln -s /var/dokuwiki-storage/data/attic /var/www/data/attic && \
-    mv /var/www/conf /var/dokuwiki-storage/conf && \
-    ln -s /var/dokuwiki-storage/conf /var/www/conf
+    mv /var/www/data/pages ${TEMPLATE_DIR}/data/pages && \
+    ln -s ${STORAGE_DIR}/data/pages /var/www/data/pages && \
+    mv /var/www/data/meta ${TEMPLATE_DIR}/data/meta && \
+    ln -s ${STORAGE_DIR}/data/meta /var/www/data/meta && \
+    mv /var/www/data/media ${TEMPLATE_DIR}/data/media && \
+    ln -s ${STORAGE_DIR}/data/media /var/www/data/media && \
+    mv /var/www/data/media_attic ${TEMPLATE_DIR}/data/media_attic && \
+    ln -s ${STORAGE_DIR}/data/media_attic /var/www/data/media_attic && \
+    mv /var/www/data/media_meta ${TEMPLATE_DIR}/data/media_meta && \
+    ln -s ${STORAGE_DIR}/data/media_meta /var/www/data/media_meta && \
+    mv /var/www/data/attic ${TEMPLATE_DIR}/data/attic && \
+    ln -s ${STORAGE_DIR}/data/attic /var/www/data/attic && \
+    mv /var/www/conf ${TEMPLATE_DIR}/conf && \
+    ln -s ${STORAGE_DIR}/conf /var/www/conf
 
 RUN echo "cgi.fix_pathinfo = 0;" >> /etc/php5/fpm/php.ini
 RUN sed -i -e "s/;daemonize\s*=\s*yes/daemonize = no/g" /etc/php5/fpm/php-fpm.conf
@@ -42,6 +44,6 @@ ADD start.sh /start.sh
 RUN chmod +x /start.sh
 
 EXPOSE 80
-VOLUME ["/var/dokuwiki-storage"]
+VOLUME ["${STORAGE_DIR}"]
 
 CMD /start.sh
