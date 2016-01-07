@@ -47,5 +47,5 @@ plugin_install() {
     mv ${PLUGIN_EXTRACT_DIR} ${PLUGIN_DEST_DIR}
   fi
 
-  #rm -fr ${PLUGIN_TMP_DIR}
+  rm -fr ${PLUGIN_TMP_DIR}
 }
