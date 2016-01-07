@@ -1,0 +1,70 @@
+#!/bin/sh
+
+set -e
+
+# $1 config file path
+# $2 config name
+# $3 config value
+update_doku_config() {
+  local CONFIG_FILE=${1}
+  local CONFIG_NAME=${2}
+  local CONFIG_VALUE=${3}
+
+  # Try update first
+  sed -i "s/^\$conf\['${CONFIG_NAME}'\].*/\$conf['${CONFIG_NAME}'] = ${CONFIG_VALUE};/" ${CONFIG_FILE}
+  # Append if not exist
+  if [[ -z $(grep -i "^\$conf\['${CONFIG_NAME}'\]" "${CONFIG_FILE}" ) ]]; then
+    echo "\$conf['$CONFIG_NAME'] = ${CONFIG_VALUE};" >> ${CONFIG_FILE}
+  fi
+}
+
+# $1: file with placeholder to replace
+# $x: placeholders to replace
+update_template() {
+  local FILE=${1?missing argument}
+  shift
+
+  [[ ! -f ${FILE} ]] && return 1
+
+  local VARIABLES=($@)
+  local tmp_file=$(mktemp)
+  cp -a "${FILE}" ${tmp_file}
+
+  # Replace placeholders
+  (
+    export ${VARIABLES[@]}
+    local IFS=":"; envsubst "${VARIABLES[*]/#/$}" < ${tmp_file} > ${FILE}
+  )
+  rm -f ${tmp_file}
+}
+
+doku_config_update_userewrite() {
+  DOKUWIKI_USEREWRITE_DEFAULT_COMMENT=""
+  DOKUWIKI_USEREWRITE_WEBSERVER_COMMENT="#"
+  case ${DOKUWIKI_USEREWRITE} in
+    webserver)
+      echo "Dokuwiki: [userewrite:webserver] 1"
+      DOKUWIKI_USEREWRITE_DEFAULT_COMMENT="#"
+      DOKUWIKI_USEREWRITE_WEBSERVER_COMMENT=""
+      DOKUWIKI_USEREWRITE_VALUE=1
+      ;;
+    internal)
+      echo "Dokuwiki: [userewrite:internal] 2"
+      DOKUWIKI_USEREWRITE_VALUE=2
+      ;;
+    *)
+      echo "Dokuwiki: [userewrite:none] 0"
+      echo "${DOKUWIKI_USEREWRITE}Default"
+      DOKUWIKI_USEREWRITE_VALUE=0
+      ;;
+  esac
+  update_template ${NGINX_DOKUWIKI_CONFIG} \
+    DOKUWIKI_USEREWRITE_DEFAULT_COMMENT \
+    DOKUWIKI_USEREWRITE_WEBSERVER_COMMENT
+  if [ -f ${DOKUWIKI_LOCAL_CONFIG} ]; then
+    update_doku_config ${DOKUWIKI_LOCAL_CONFIG} "userewrite" ${DOKUWIKI_USEREWRITE_VALUE}
+  else
+    [[ ! -f ${DOKUWIKI_INSTALLER_CONFIG} ]] && touch ${DOKUWIKI_INSTALLER_CONFIG}
+    update_doku_config ${DOKUWIKI_INSTALLER_CONFIG} "userewrite" ${DOKUWIKI_USEREWRITE_VALUE}
+  fi
+}

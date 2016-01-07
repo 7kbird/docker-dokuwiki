@@ -1,0 +1,9 @@
+#!/bin/bash
+
+NGINX_DOKUWIKI_CONFIG='/etc/nginx/sites-enabled/dokuwiki.conf'
+DOKUWIKI_WWW_DIR='/var/www'
+
+DOKUWIKI_LOCAL_CONFIG=${STORAGE_DIR}/conf/local.php
+DOKUWIKI_INSTALLER_CONFIG=${DOKUWIKI_WWW_DIR}/install.conf
+DOKUWIKI_USEREWRITE=${DOKUWIKI_USEREWRITE:-}
+
