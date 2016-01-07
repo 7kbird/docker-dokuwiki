@@ -1,0 +1,51 @@
+#!/bin/bash
+
+set -e
+source	${DOKUWIKI_BUILD_DIR}/env-defaults
+
+# $1 plugin name
+# $2 plugin download url
+# $3 file format, [zip,tar,tar.gz] are supported
+plugin_install() {
+  # TODO: get download url from  http://www.dokuwiki.org/lib/plugins/pluginrepo/api.php
+  local PLUGIN_NAME=${1}
+  local PLUGIN_DOWNLOAD_URL=${2}
+  local PLUGIN_FORMAT=${3:-zip}
+
+  local PLUGIN_TMP_DIR=$(mktemp -d)
+  local PLUGIN_EXTRACT_DIR=${PLUGIN_TMP_DIR}/extracted
+  
+  cd ${PLUGIN_TMP_DIR}
+  curl -o ${PLUGIN_NAME}.${PLUGIN_FORMAT} -L "${PLUGIN_DOWNLOAD_URL}"
+  local PLUGIN_DOWNLOAD_FILE=${PLUGIN_TMP_DIR}/${PLUGIN_NAME}.${PLUGIN_FORMAT}
+
+  mkdir ${PLUGIN_EXTRACT_DIR}
+  cd ${PLUGIN_EXTRACT_DIR}  
+  case ${PLUGIN_FORMAT} in
+    zip)
+      echo "${PLUGIN_DOWNLOAD_FILE}"
+      unzip "${PLUGIN_DOWNLOAD_FILE}"
+      ;;
+    tar)
+      tar -xf ${PLUGIN_DOWNLOAD_FILE}
+      ;;
+    tar.gz)
+      tar -xzf ${PLUGIN_DOWNLOAD_FILE}
+      ;;
+    *)
+      echo "Error: plugin format not supported:[${PLUGIN_FORMAT}]"
+      return 1
+      ;;
+  esac
+
+  local PLUGIN_DEST_DIR=${DOKUWIKI_WWW_DIR}/lib/plugins/${PLUGIN_NAME}
+  local files=("${PLUGIN_EXTRACT_DIR}"/*)
+  if (( ${#files[@]} == 1 )) && [[ -d "${files[0]}" ]] ; then
+    mkdir -p ${PLUGIN_DEST_DIR}
+    mv ${PLUGIN_EXTRACT_DIR}/*/* ${PLUGIN_DEST_DIR}/
+  else
+    mv ${PLUGIN_EXTRACT_DIR} ${PLUGIN_DEST_DIR}
+  fi
+
+  #rm -fr ${PLUGIN_TMP_DIR}
+}

@@ -2,19 +2,35 @@
 
 set -e
 
-# $1 config file path
-# $2 config name
-# $3 config value
+# $1 config name support format like 'plugin>smtp>smtp_host' with '>' as seperator
+# $2 config value, if value is empty, config will be removed
 update_doku_config() {
-  local CONFIG_FILE=${1}
-  local CONFIG_NAME=${2}
-  local CONFIG_VALUE=${3}
+  IFS='>' read -r -a CONFIG_NAMES <<< ${1}
+  local CONFIG_VALUE=${2}
 
-  # Try update first
-  sed -i "s/^\$conf\['${CONFIG_NAME}'\].*/\$conf['${CONFIG_NAME}'] = ${CONFIG_VALUE};/" ${CONFIG_FILE}
-  # Append if not exist
-  if [[ -z $(grep -i "^\$conf\['${CONFIG_NAME}'\]" "${CONFIG_FILE}" ) ]]; then
-    echo "\$conf['$CONFIG_NAME'] = ${CONFIG_VALUE};" >> ${CONFIG_FILE}
+  if [ -f ${DOKUWIKI_LOCAL_CONFIG} ]; then
+    local CONFIG_FILE=${DOKUWIKI_LOCAL_CONFIG}
+  else
+    [[ ! -f ${DOKUWIKI_INSTALLER_CONFIG} ]] && touch ${DOKUWIKI_INSTALLER_CONFIG}
+    local CONFIG_FILE=${DOKUWIKI_INSTALLER_CONFIG}
+  fi
+
+  local CONFIG_LEFT="\$conf"$(printf "['%s']" "${CONFIG_NAMES[@]}")
+  local CONFIG_LEFT_REG="\$conf"$(printf "\['%s'\]" "${CONFIG_NAMES[@]}")
+
+  if [[ -z "${CONFIG_VALUE}" ]]; then  # Remove config if value is empty
+    # Try update first
+    sed -i "s/^${CONFIG_LEFT_REG}.*//" ${CONFIG_FILE}
+  else
+    if ! [[ "${CONFIG_VALUE}" =~ ^[0-9]+([.][0-9]+)?$ ]] ; then
+      # add quote for string
+      CONFIG_VALUE="'"${CONFIG_VALUE}"'"
+    fi
+    sed -i "s/^${CONFIG_LEFT_REG}.*/${CONFIG_LEFT} = ${CONFIG_VALUE};/" ${CONFIG_FILE}
+    # Append if not exist
+    if [[ -z $(grep -i "^${CONFIG_LEFT_REG}" "${CONFIG_FILE}" ) ]]; then
+      echo "${CONFIG_LEFT} = ${CONFIG_VALUE};" >> ${CONFIG_FILE}
+    fi
   fi
 }
 
@@ -38,7 +54,7 @@ update_template() {
   rm -f ${tmp_file}
 }
 
-doku_config_update_userewrite() {
+dokuwiki_setup_userewrite() {
   DOKUWIKI_USEREWRITE_DEFAULT_COMMENT=""
   DOKUWIKI_USEREWRITE_WEBSERVER_COMMENT="#"
   case ${DOKUWIKI_USEREWRITE} in
@@ -58,13 +74,40 @@ doku_config_update_userewrite() {
       DOKUWIKI_USEREWRITE_VALUE=0
       ;;
   esac
+  
   update_template ${NGINX_DOKUWIKI_CONFIG} \
     DOKUWIKI_USEREWRITE_DEFAULT_COMMENT \
     DOKUWIKI_USEREWRITE_WEBSERVER_COMMENT
-  if [ -f ${DOKUWIKI_LOCAL_CONFIG} ]; then
-    update_doku_config ${DOKUWIKI_LOCAL_CONFIG} "userewrite" ${DOKUWIKI_USEREWRITE_VALUE}
-  else
-    [[ ! -f ${DOKUWIKI_INSTALLER_CONFIG} ]] && touch ${DOKUWIKI_INSTALLER_CONFIG}
-    update_doku_config ${DOKUWIKI_INSTALLER_CONFIG} "userewrite" ${DOKUWIKI_USEREWRITE_VALUE}
-  fi
+  
+  update_doku_config "userewrite" ${DOKUWIKI_USEREWRITE_VALUE}
+}
+
+dokuwiki_setup_smtp() {
+  case ${DOKUWIKI_SMTP_SSL} in
+    ssl)
+      echo "Dokuwiki: [smtp_ssl:ssl]"
+      DOKUWIKI_SMTP_PORT=${DOKUWIKI_SMTP_PORT:-465}
+      ;;
+    tls)
+      echo "Dokuwiki: [smtp_ssl:tls]"
+      DOKUWIKI_SMTP_PORT=${DOKUWIKI_SMTP_PORT:-464}
+      ;;
+    *)
+      [[ "${DOKUWIKI_SMTP_SSL}" ]] && echo "stmp_ssl support only ssl/tls or emtpy" && return 1
+      echo "Dokuwiki: [smtp_ssl:none]"
+      DOKUWIKI_SMTP_PORT=${DOKUWIKI_SMTP_PORT:-25}
+      ;;
+  esac
+  update_doku_config "plugin>smtp>smtp_host" ${DOKUWIKI_SMTP_HOST}
+  update_doku_config "plugin>smtp>smtp_port" ${DOKUWIKI_SMTP_PORT}
+  update_doku_config "plugin>smtp>smtp_ssl" ${DOKUWIKI_SMTP_SSL}
+  update_doku_config "plugin>smtp>auth_user" ${DOKUWIKI_SMTP_USER}
+  update_doku_config "plugin>smtp>auth_pass" ${DOKUWIKI_SMTP_PASS}
+  update_doku_config "plugin>smtp>localdomain" ${DOKUWIKI_DOMAIN}
+  update_doku_config "mailfrom" ${DOKUWIKI_MAILFROM}
+}
+
+dokuwiki_config_setup() {
+  dokuwiki_setup_userewrite
+  dokuwiki_setup_smtp
 }

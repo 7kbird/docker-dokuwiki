@@ -10,7 +10,7 @@ fi
 
 cp ${DOKUWIKI_BUILD_DIR}/nginx.conf ${NGINX_DOKUWIKI_CONFIG}
 
-doku_config_update_userewrite
+dokuwiki_config_setup
 
 chown -R www-data:www-data /var/www
 chown -R www-data:www-data $STORAGE_DIR

@@ -4,7 +4,7 @@ MAINTAINER 7kbird <7kbird@gmail.com>
 RUN LC_ALL=C DEBIAN_FRONTEND=noninteractive apt-key adv --keyserver hkp://keyserver.ubuntu.com --recv-keys E5267A6C && \
     echo 'deb http://ppa.launchpad.net/ondrej/php5/ubuntu trusty main' > /etc/apt/sources.list.d/ondrej-php5-trusty.list && \
     apt-get update && \
-    apt-get install -y supervisor nginx php5-fpm php5-gd curl gettext
+    apt-get install -y supervisor nginx php5-fpm php5-gd curl unzip gettext
 
 ENV DOKUWIKI_VERSION 2015-08-10a
 ENV MD5_CHECKSUM a4b8ae00ce94e42d4ef52dd8f4ad30fe
@@ -37,9 +37,10 @@ RUN sed -i -e "s/;daemonize\s*=\s*yes/daemonize = no/g" /etc/php5/fpm/php-fpm.co
 RUN echo "daemon off;" >> /etc/nginx/nginx.conf
 RUN rm /etc/nginx/sites-enabled/*
 
-ENV DOKUWIKI_BUILD_DIR /var/dokuwiki/build 
+ENV DOKUWIKI_BUILD_DIR /var/dokuwiki_build 
 COPY build/  ${DOKUWIKI_BUILD_DIR}/
-RUN chmod +x ${DOKUWIKI_BUILD_DIR}/start.sh
+RUN chmod +x ${DOKUWIKI_BUILD_DIR}/start.sh ${DOKUWIKI_BUILD_DIR}/build.sh
+RUN ${DOKUWIKI_BUILD_DIR}/build.sh
 
 ADD supervisord.conf /etc/supervisord.conf
 
